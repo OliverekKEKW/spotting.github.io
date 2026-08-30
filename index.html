@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Letecký denník — verejný spotting log</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+:root{
+  --bg: #10141a;
+  --bg-panel: #161b23;
+  --grid-line: rgba(95,168,160,0.07);
+  --paper: #eae2ce;
+  --paper-dark: #ded3b8;
+  --ink: #221f18;
+  --ink-soft: #55503f;
+  --amber: #e3a63f;
+  --amber-dim: #b6832c;
+  --teal: #4f9c93;
+  --olive: #75824f;
+  --rose: #b9846f;
+  --muted: #8a93a6;
+  --danger: #c4634b;
+  --border: #262c36;
+  --font-display: 'Space Mono', monospace;
+  --font-body: 'IBM Plex Sans', sans-serif;
+  --font-data: 'JetBrains Mono', monospace;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  background:
+    repeating-linear-gradient(0deg, var(--grid-line) 0px, transparent 1px, transparent 42px, var(--grid-line) 43px),
+    repeating-linear-gradient(90deg, var(--grid-line) 0px, transparent 1px, transparent 42px, var(--grid-line) 43px),
+    var(--bg);
+  color: var(--muted);
+  font-family: var(--font-body);
+  min-height:100vh;
+  padding: 28px 16px 60px;
+}
+.board{ max-width: 960px; margin: 0 auto; }
+.board__header{
+  display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:14px;
+  border-bottom: 1px solid var(--border); padding-bottom:18px; margin-bottom:16px;
+}
+.board__eyebrow{ font-family: var(--font-data); font-size:11px; letter-spacing:2px; color: var(--teal); display:block; margin-bottom:6px; }
+.board__title h1{ font-family: var(--font-display); font-weight:700; font-size: 28px; color: var(--paper); margin:0; letter-spacing: 0.5px; }
+.board__auth{ font-family: var(--font-data); font-size:12px; color: var(--muted); text-align:right; }
+.board__auth a, .board__auth span.link{ color: var(--teal); cursor:pointer; text-decoration:underline; }
+.board__actions{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:18px; }
+
+.btn{ font-family: var(--font-data); font-size:13px; font-weight:600; border:none; border-radius:3px; padding:10px 16px; cursor:pointer; transition: transform .08s ease, filter .15s ease; }
+.btn:hover{ filter:brightness(1.1); }
+.btn:active{ transform: translateY(1px); }
+.btn:disabled{ opacity:0.5; cursor:default; }
+.btn--amber{ background: var(--amber); color:#20160a; }
+.btn--ghost{ background: transparent; color: var(--muted); border:1px solid var(--border); }
+.btn--ghost:hover{ color: var(--paper); border-color: var(--muted); }
+.btn--danger{ background: transparent; color: var(--danger); border:1px solid var(--danger); }
+.btn--danger:hover{ background: var(--danger); color:#1a0e0a; }
+.btn--small{ padding:6px 12px; font-size:11.5px; }
+
+.panel{ background: var(--bg-panel); border:1px solid var(--border); border-radius:6px; padding:20px; margin-bottom:22px; }
+.panel.hidden{ display:none; }
+.panel h2{ font-family: var(--font-display); font-size:15px; color:var(--amber); margin:0 0 16px; letter-spacing:1px; }
+.panel p{ font-family: var(--font-body); font-size:13.5px; line-height:1.6; color: var(--paper); }
+
+.form-grid{ display:grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap:12px; }
+.field{ display:flex; flex-direction:column; gap:5px; }
+.field label{ font-size:11px; color:var(--muted); font-family:var(--font-data); letter-spacing:0.5px; }
+.field input, .field select, .field textarea{
+  background:#0d1116; border:1px solid var(--border); color: var(--paper);
+  font-family: var(--font-data); font-size:13px; padding:8px 10px; border-radius:3px;
+}
+.field input:focus, .field select:focus, .field textarea:focus{ outline:none; border-color: var(--teal); }
+.field--wide{ grid-column: 1 / -1; }
+.field textarea{ font-family: var(--font-body); resize:vertical; min-height:52px; }
+.form-actions{ display:flex; gap:10px; margin-top:16px; justify-content:flex-end; }
+
+.photo-rows{ display:flex; flex-direction:column; gap:8px; margin-bottom:8px; }
+.photo-rows__empty{ font-family: var(--font-data); font-size:12px; color: var(--muted); padding:6px 2px; }
+.photo-row{ display:flex; align-items:center; gap:10px; background:#0d1116; border:1px solid var(--border); border-radius:3px; padding:8px 10px; flex-wrap:wrap; }
+.photo-row img{ width:40px; height:40px; object-fit:cover; border-radius:3px; border:1px solid var(--border); flex-shrink:0; }
+.photo-row input[type=file]{ font-family: var(--font-body); font-size:11px; color: var(--muted); max-width:160px; }
+.photo-row__remove{ background:none; border:1px solid var(--danger); color: var(--danger); border-radius:3px; width:26px; height:26px; cursor:pointer; flex-shrink:0; font-family: var(--font-data); }
+.photo-row__remove:hover{ background: var(--danger); color:#1a0e0a; }
+
+.controls{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:14px; }
+.controls input, .controls select{ background: var(--bg-panel); border:1px solid var(--border); color: var(--paper); font-family: var(--font-data); font-size:13px; padding:8px 10px; border-radius:3px; }
+#search{ flex:1; min-width:180px; }
+.controls__actions{ display:flex; gap:8px; margin-left:auto; }
+
+.count{ font-family: var(--font-data); font-size:11px; color: var(--muted); letter-spacing:1px; margin-bottom:10px; }
+
+.tile-grid{ display:grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap:12px; }
+.type-group{ margin-bottom: 20px; }
+.type-group__header{ font-family: var(--font-display); font-size: 13px; color: var(--amber); letter-spacing: 1.5px; padding: 6px 2px; margin-bottom: 8px; border-bottom: 1px solid var(--border); }
+.type-group__count{ color: var(--muted); font-family: var(--font-data); font-size:11px; }
+
+.tile{ background: var(--paper); border-radius:4px; overflow:hidden; box-shadow: 0 2px 6px rgba(0,0,0,0.25); display:flex; flex-direction:column; }
+.tile__photo-wrap{ position:relative; width:100%; aspect-ratio: 4/3; background:#0d1116; overflow:hidden; cursor:pointer; }
+.tile__photo-wrap:hover .tile__photo{ transform: scale(1.05); }
+.tile__photo{ width:100%; height:100%; object-fit:cover; display:block; transition: transform .2s ease; }
+.tile__nophoto{ display:flex; align-items:center; justify-content:center; height:100%; color: var(--muted); font-family: var(--font-data); font-size:11px; text-align:center; padding:8px; }
+.tile__tab{ position:absolute; top:0; left:0; width:6px; height:100%; z-index:1; }
+.tile__tab--commercial{ background: var(--teal); }
+.tile__tab--cargo{ background: var(--amber-dim); }
+.tile__tab--military{ background: var(--olive); }
+.tile__tab--ga{ background: var(--rose); }
+.tile__tab--other{ background: #999; }
+.tile__count{ position:absolute; bottom:6px; right:6px; background: rgba(16,20,26,0.85); color: var(--paper); font-family: var(--font-data); font-size:10.5px; padding:2px 6px; border-radius:3px; z-index:2; }
+.tile__admin-del{ position:absolute; top:6px; right:6px; z-index:3; width:24px; height:24px; border-radius:50%; border:none; background: rgba(196,99,75,0.9); color:#fff; font-family: var(--font-data); cursor:pointer; }
+.tile__admin-del:hover{ background: var(--danger); }
+.tile__admin-edit{ position:absolute; top:6px; left:6px; z-index:3; width:24px; height:24px; border-radius:50%; border:none; background: rgba(79,156,147,0.9); color:#fff; font-family: var(--font-data); cursor:pointer; }
+.tile__admin-edit:hover{ background: var(--teal); }
+.tile__footer{ padding:8px 10px 10px; display:flex; flex-direction:column; gap:3px; }
+.tile__reg{ font-family: var(--font-display); font-weight:700; font-size:14px; color: var(--ink); }
+.tile__type{ font-family: var(--font-data); font-size:11px; color: var(--ink-soft); }
+.tile__meta{ font-family: var(--font-data); font-size:10px; color: var(--ink-soft); }
+.tile__fr-link{ font-family: var(--font-data); font-size:11px; color: var(--amber-dim); cursor:pointer; text-decoration: underline; margin-top:2px; width: fit-content; }
+.tile__fr-link:hover{ color: var(--ink); }
+
+.pending-card{ background: var(--paper); border-radius:4px; padding:12px 14px; margin-bottom:10px; display:flex; gap:14px; align-items:flex-start; flex-wrap:wrap; }
+.pending-card img{ width:80px; height:80px; object-fit:cover; border-radius:3px; flex-shrink:0; }
+.pending-card__info{ flex:1; min-width:180px; font-family: var(--font-data); font-size:12px; color: var(--ink-soft); }
+.pending-card__info b{ color: var(--ink); font-family: var(--font-display); font-size:14px; }
+.pending-card__actions{ display:flex; gap:8px; }
+.pending-card__actions button{ font-family: var(--font-data); font-size:11.5px; border-radius:3px; padding:6px 12px; cursor:pointer; border:none; }
+.btn-approve{ background: var(--teal); color:#0d1116; }
+.btn-edit{ background: var(--amber-dim); color:#1a0e0a; }
+.btn-reject{ background: transparent; border:1px solid var(--danger) !important; color: var(--danger); }
+.btn-reject:hover{ background: var(--danger); color:#1a0e0a; }
+
+.empty{ text-align:center; padding: 50px 20px; color: var(--muted); font-family: var(--font-data); font-size:13px; border:1px dashed var(--border); border-radius:6px; }
+.empty.hidden{ display:none; }
+
+.toast{ position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background: var(--danger); color:#1a0e0a; font-family: var(--font-data); font-size:12.5px; padding:10px 16px; border-radius:4px; box-shadow:0 4px 12px rgba(0,0,0,0.4); z-index:20; max-width:90vw; }
+.toast.hidden{ display:none; }
+
+.footnote{ margin-top:26px; font-size:11.5px; color: var(--muted); font-family: var(--font-data); line-height:1.6; border-top:1px solid var(--border); padding-top:14px; }
+
+.lightbox{ position:fixed; inset:0; z-index:50; display:flex; align-items:center; justify-content:center; padding: 24px; }
+.lightbox.hidden{ display:none; }
+.lightbox__backdrop{ position:absolute; inset:0; background: rgba(8,10,13,0.9); }
+.lightbox__content{ position:relative; max-width: 92vw; max-height: 90vh; display:flex; flex-direction:column; align-items:center; gap:12px; }
+.lightbox__content img{ max-width: 92vw; max-height: 74vh; object-fit:contain; border-radius:4px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+.lightbox__caption{ font-family: var(--font-data); font-size:12.5px; color: var(--paper); text-align:center; max-width: 70ch; line-height:1.7; }
+.lightbox__count{ color: var(--teal); font-weight:600; }
+.lightbox__fr-toggle{ color: var(--amber); cursor:pointer; text-decoration: underline; }
+.lightbox__nav{ position:absolute; top:50%; transform:translateY(-50%); width:44px; height:44px; border-radius:50%; background: rgba(234,226,206,0.92); color: var(--ink); border:none; font-size:22px; line-height:1; cursor:pointer; font-family: var(--font-display); display:none; align-items:center; justify-content:center; }
+.lightbox__nav:hover{ background: var(--paper); }
+.lightbox__nav--prev{ left:-6px; }
+.lightbox__nav--next{ right:-6px; }
+.lightbox__close{ position:absolute; top:-16px; right:-16px; width:32px; height:32px; border-radius:50%; background: var(--paper); color: var(--ink); border:none; font-size:16px; cursor:pointer; font-family: var(--font-data); }
+
+@media (max-width:560px){
+  .board__title h1{ font-size:22px; }
+}
+</style>
+</head>
+<body>
+<div class="board">
+  <header class="board__header">
+    <div class="board__title">
+      <span class="board__eyebrow">VEREJNÁ EVIDENCIA · GROUND SPOTTING</span>
+      <h1>Letecký denník</h1>
+    </div>
+    <div class="board__auth" id="authArea">
+      <span class="link" id="authToggle">Prihlásenie pre správcu</span>
+    </div>
+  </header>
+
+  <div class="board__actions">
+    <button id="btnNew" class="btn btn--amber">+ Pridať pozorovanie</button>
+    <button id="btnPending" class="btn btn--ghost hidden">Čakajúce (0)</button>
+  </div>
+
+  <div id="loginPanel" class="panel hidden">
+    <h2>PRIHLÁSENIE SPRÁVCU</h2>
+    <div class="form-grid">
+      <div class="field"><label>Email</label><input type="email" id="l_email"></div>
+      <div class="field"><label>Heslo</label><input type="password" id="l_password"></div>
+    </div>
+    <div class="form-actions">
+      <button id="btnLoginCancel" class="btn btn--ghost">Zrušiť</button>
+      <button id="btnLoginSubmit" class="btn btn--amber">Prihlásiť</button>
+    </div>
+  </div>
+
+  <div id="thanksPanel" class="panel hidden">
+    <h2>ĎAKUJEME</h2>
+    <p>Tvoje pozorovanie bolo odoslané a čaká na schválenie správcom. Po schválení sa objaví vo verejnej galérii nižšie.</p>
+    <div class="form-actions"><button id="btnThanksOk" class="btn btn--amber">OK</button></div>
+  </div>
+
+  <div id="formPanel" class="panel hidden">
+    <h2 id="formTitle">NOVÉ POZOROVANIE</h2>
+    <div class="form-grid">
+      <div class="field"><label>Dátum</label><input type="date" id="f_date"></div>
+      <div class="field"><label>Čas</label><input type="time" id="f_time"></div>
+      <div class="field">
+        <label>Lokalita spottingu</label>
+        <input type="text" id="f_location" list="locationOptions" placeholder="napr. Chmelnica" autocomplete="off">
+        <datalist id="locationOptions"></datalist>
+      </div>
+      <div class="field"><label>Kategória</label>
+        <select id="f_category">
+          <option value="commercial">Komerčné</option>
+          <option value="cargo">Nákladné</option>
+          <option value="military">Vojenské</option>
+          <option value="ga">Všeobecné letectvo</option>
+          <option value="other">Iné</option>
+        </select>
+      </div>
+      <div class="field"><label>Registrácia</label><input type="text" id="f_reg" placeholder="OK-ABC"></div>
+      <div class="field"><label>Typ lietadla</label><input type="text" id="f_type" placeholder="Boeing 737, Airbus A320..."></div>
+      <div class="field"><label>Dopravca / prevádzkovateľ</label><input type="text" id="f_operator"></div>
+      <div class="field"><label>Číslo letu</label><input type="text" id="f_flightno" placeholder="WZZ145"></div>
+      <div class="field"><label>Trasa</label><input type="text" id="f_route" placeholder="LZKZ → EGLL"></div>
+      <div class="field field--wide"><label>Poznámky</label><textarea id="f_notes" placeholder="svetlo, uhol, čokoľvek zaujímavé..."></textarea></div>
+      <div class="field field--wide">
+        <label>Fotografie (viac uhlov toho istého preletu)</label>
+        <div id="photoRows" class="photo-rows"></div>
+        <button type="button" id="btnAddPhoto" class="btn btn--ghost btn--small">+ Pridať fotku</button>
+      </div>
+      <div class="field field--wide">
+        <label>FlightRadar screenshot (voliteľné)</label>
+        <div class="photo-row" id="frRow">
+          <img id="f_frshot_preview" style="display:none;">
+          <input type="file" id="f_frshot" accept="image/*">
+          <button type="button" id="btnRemoveFrShot" class="photo-row__remove hidden">✕</button>
+        </div>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button id="btnCancel" class="btn btn--ghost">Zrušiť</button>
+      <button id="btnSave" class="btn btn--amber">Odoslať na schválenie</button>
+    </div>
+  </div>
+
+  <div id="pendingPanel" class="panel hidden">
+    <h2>ČAKAJÚCE NA SCHVÁLENIE</h2>
+    <div id="pendingList"></div>
+  </div>
+
+  <div class="controls">
+    <input id="search" placeholder="Hľadať (typ, registrácia, dopravca, trasa...)">
+    <select id="filterLoc"><option value="">Všetky lokality</option></select>
+    <select id="filterType"><option value="">Všetky typy</option></select>
+    <select id="filterCat">
+      <option value="">Všetky kategórie</option>
+      <option value="commercial">Komerčné</option>
+      <option value="cargo">Nákladné</option>
+      <option value="military">Vojenské</option>
+      <option value="ga">Všeobecné letectvo</option>
+      <option value="other">Iné</option>
+    </select>
+    <select id="sortMode">
+      <option value="type">Zoskupiť podľa typu</option>
+      <option value="date">Zoradiť podľa dátumu</option>
+    </select>
+  </div>
+
+  <div id="count" class="count"></div>
+  <div id="galleryList"></div>
+  <div id="empty" class="empty hidden">Zatiaľ žiadne schválené pozorovania.</div>
+
+  <div class="footnote">
+    Hocikto môže odoslať pozorovanie cez "+ Pridať pozorovanie" — objaví sa vo verejnej galérii až po schválení správcom. Fotky a dáta sú uložené v Supabase (databáza + úložisko), nie v tomto prehliadači — takže funguje odkiaľkoľvek a pre kohokoľvek.
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<div id="lightbox" class="lightbox hidden">
+  <div class="lightbox__backdrop"></div>
+  <div class="lightbox__content">
+    <button id="lightboxClose" class="lightbox__close">✕</button>
+    <button id="lightboxPrev" class="lightbox__nav lightbox__nav--prev">‹</button>
+    <img id="lightboxImg" src="" alt="">
+    <button id="lightboxNext" class="lightbox__nav lightbox__nav--next">›</button>
+    <div id="lightboxCaption" class="lightbox__caption"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = 'https://ldrdbpwfhwnrgnnelyoj.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_ZrxP2pNTPA_mXZ22Fc6oEA_9CyZ48Hn';
+const BUCKET = 'spotting-photos';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const $ = (id) => document.getElementById(id);
+
+let state = { entries: [] };
+let pendingEntries = [];
+let currentUser = null;
+let currentPhotos = [];
+let existingPhotos = [];
+let removedPhotoIds = [];
+let frShotBlob = null;
+let frShotRemoved = false;
+let existingFrShotPath = null;
+let editingId = null;
+let lightboxState = null;
+
+function toast(msg, ms=3200){
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.remove('hidden');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(()=> t.classList.add('hidden'), ms);
+}
+
+function escapeHtml(str){
+  return (str || '').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function resizeImageToBlob(file, maxWidth=1600, quality=0.85){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxWidth / img.width);
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob((blob) => { blob ? resolve(blob) : reject(new Error('toBlob failed')); }, 'image/jpeg', quality);
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+/* ---------- photo rows (submission form) ---------- */
+function renderPhotoRows(){
+  const container = $('photoRows');
+  const existingRows = existingPhotos.map((p, idx) => `
+    <div class="photo-row" data-existing-idx="${idx}">
+      <img src="${p.url}" style="display:block;">
+      <span style="flex:1; font-family: var(--font-data); font-size:11.5px; color: var(--muted); word-break:break-all;">${escapeHtml(p.filename || 'existujúca fotka')}</span>
+      <button type="button" class="photo-row__remove" data-remove-existing-idx="${idx}">✕</button>
+    </div>
+  `).join('');
+  const newRows = currentPhotos.map((p, idx) => `
+    <div class="photo-row" data-idx="${idx}">
+      <img data-thumb="${idx}" src="${p.previewUrl || ''}" style="display:${p.previewUrl ? 'block' : 'none'};">
+      <input type="file" accept="image/*" data-file-idx="${idx}">
+      <button type="button" class="photo-row__remove" data-remove-idx="${idx}">✕</button>
+    </div>
+  `).join('');
+  const all = existingRows + newRows;
+  container.innerHTML = all || '<div class="photo-rows__empty">Zatiaľ žiadna fotka pridaná.</div>';
+}
+
+$('btnAddPhoto').addEventListener('click', () => {
+  currentPhotos.push({ blob: null, previewUrl: null, filename: '' });
+  renderPhotoRows();
+});
+
+$('photoRows').addEventListener('click', (e) => {
+  const rmExisting = e.target.closest('[data-remove-existing-idx]');
+  if(rmExisting){
+    const idx = parseInt(rmExisting.getAttribute('data-remove-existing-idx'), 10);
+    const removed = existingPhotos.splice(idx, 1)[0];
+    if(removed) removedPhotoIds.push({ dbId: removed.dbId, storagePath: removed.storagePath });
+    renderPhotoRows();
+    return;
+  }
+  const rm = e.target.closest('[data-remove-idx]');
+  if(rm){
+    const idx = parseInt(rm.getAttribute('data-remove-idx'), 10);
+    if(currentPhotos[idx] && currentPhotos[idx].previewUrl) URL.revokeObjectURL(currentPhotos[idx].previewUrl);
+    currentPhotos.splice(idx, 1);
+    renderPhotoRows();
+  }
+});
+
+$('photoRows').addEventListener('change', async (e) => {
+  const fileInput = e.target.closest('[data-file-idx]');
+  if(fileInput && fileInput.files[0]){
+    const idx = parseInt(fileInput.getAttribute('data-file-idx'), 10);
+    try{
+      const blob = await resizeImageToBlob(fileInput.files[0], 1600, 0.85);
+      if(currentPhotos[idx]){
+        if(currentPhotos[idx].previewUrl) URL.revokeObjectURL(currentPhotos[idx].previewUrl);
+        currentPhotos[idx].blob = blob;
+        currentPhotos[idx].filename = fileInput.files[0].name;
+        currentPhotos[idx].previewUrl = URL.createObjectURL(blob);
+        const thumb = document.querySelector(`[data-thumb="${idx}"]`);
+        if(thumb){ thumb.src = currentPhotos[idx].previewUrl; thumb.style.display = 'block'; }
+      }
+    }catch(err){ toast('Nepodarilo sa spracovať fotografiu.'); }
+  }
+});
+
+$('f_frshot').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+  try{
+    frShotBlob = await resizeImageToBlob(file, 1000, 0.8);
+    frShotRemoved = false;
+    const url = URL.createObjectURL(frShotBlob);
+    $('f_frshot_preview').src = url;
+    $('f_frshot_preview').style.display = 'block';
+    $('btnRemoveFrShot').classList.remove('hidden');
+  }catch(err){ toast('Nepodarilo sa spracovať screenshot.'); }
+});
+
+$('btnRemoveFrShot').addEventListener('click', () => {
+  frShotRemoved = true;
+  frShotBlob = null;
+  $('f_frshot_preview').style.display = 'none';
+  $('btnRemoveFrShot').classList.add('hidden');
+  $('f_frshot').value = '';
+});
+
+/* ---------- submission form open/close ---------- */
+function resetForm(){
+  ['f_date','f_time','f_location','f_reg','f_type','f_operator','f_flightno','f_route','f_notes'].forEach(id => $(id).value = '');
+  $('f_category').value = 'commercial';
+  currentPhotos.forEach(p => { if(p.previewUrl) URL.revokeObjectURL(p.previewUrl); });
+  currentPhotos = [];
+  existingPhotos = [];
+  removedPhotoIds = [];
+  renderPhotoRows();
+  frShotBlob = null;
+  frShotRemoved = false;
+  existingFrShotPath = null;
+  $('f_frshot').value = '';
+  $('f_frshot_preview').style.display = 'none';
+  $('btnRemoveFrShot').classList.add('hidden');
+  editingId = null;
+  $('formTitle').textContent = 'NOVÉ POZOROVANIE';
+  $('btnSave').textContent = 'Odoslať na schválenie';
+}
+
+function openEditForm(entry){
+  resetForm();
+  editingId = entry.id;
+  $('formTitle').textContent = 'UPRAVIŤ POZOROVANIE';
+  $('btnSave').textContent = 'Uložiť zmeny';
+  $('f_date').value = entry.date || '';
+  $('f_time').value = entry.time || '';
+  $('f_location').value = entry.location || '';
+  $('f_category').value = entry.category || 'commercial';
+  $('f_reg').value = entry.reg || '';
+  $('f_type').value = entry.type || '';
+  $('f_operator').value = entry.operator || '';
+  $('f_flightno').value = entry.flightNo || '';
+  $('f_route').value = entry.route || '';
+  $('f_notes').value = entry.notes || '';
+  existingPhotos = entry.photos.map(p => ({ dbId: p.id, storagePath: p.path, url: p.url, filename: p.filename }));
+  renderPhotoRows();
+  existingFrShotPath = entry.frShotPath || null;
+  if(entry.frShotUrl){
+    $('f_frshot_preview').src = entry.frShotUrl;
+    $('f_frshot_preview').style.display = 'block';
+    $('btnRemoveFrShot').classList.remove('hidden');
+  }
+  $('formPanel').classList.remove('hidden');
+  $('f_date').focus();
+}
+
+$('btnNew').addEventListener('click', () => {
+  resetForm();
+  $('formPanel').classList.remove('hidden');
+  $('f_date').focus();
+});
+$('btnCancel').addEventListener('click', () => { $('formPanel').classList.add('hidden'); resetForm(); });
+$('btnThanksOk').addEventListener('click', () => $('thanksPanel').classList.add('hidden'));
+
+async function submitNew(reg, type){
+  const sightingId = crypto.randomUUID();
+  let frPath = null;
+
+  if(frShotBlob){
+    frPath = `${sightingId}/frshot.jpg`;
+    const { error: frUpErr } = await sb.storage.from(BUCKET).upload(frPath, frShotBlob, { contentType: 'image/jpeg' });
+    if(frUpErr) throw frUpErr;
+  }
+
+  const { error } = await sb.from('sightings').insert([{
+    id: sightingId,
+    date: $('f_date').value || null,
+    time: $('f_time').value || null,
+    location: $('f_location').value.trim() || null,
+    category: $('f_category').value,
+    reg: reg || null,
+    type: type || null,
+    operator: $('f_operator').value.trim() || null,
+    flight_no: $('f_flightno').value.trim() || null,
+    route: $('f_route').value.trim() || null,
+    notes: $('f_notes').value.trim() || null,
+    fr_shot_path: frPath
+  }]);
+  if(error) throw error;
+
+  for(let i = 0; i < currentPhotos.length; i++){
+    const p = currentPhotos[i];
+    if(!p.blob) continue;
+    const path = `${sightingId}/photo_${i}_${Date.now()}.jpg`;
+    const { error: upErr } = await sb.storage.from(BUCKET).upload(path, p.blob, { contentType: 'image/jpeg' });
+    if(!upErr){
+      await sb.from('sighting_photos').insert([{ sighting_id: sightingId, storage_path: path, original_filename: p.filename || null }]);
+    }
+  }
+
+  $('formPanel').classList.add('hidden');
+  resetForm();
+  $('thanksPanel').classList.remove('hidden');
+  if(currentUser) loadPending();
+}
+
+async function submitEdit(reg, type){
+  if(removedPhotoIds.length){
+    const paths = removedPhotoIds.map(p => p.storagePath).filter(Boolean);
+    if(paths.length) await sb.storage.from(BUCKET).remove(paths);
+    const ids = removedPhotoIds.map(p => p.dbId).filter(Boolean);
+    if(ids.length) await sb.from('sighting_photos').delete().in('id', ids);
+  }
+
+  for(let i = 0; i < currentPhotos.length; i++){
+    const p = currentPhotos[i];
+    if(!p.blob) continue;
+    const path = `${editingId}/photo_edit_${Date.now()}_${i}.jpg`;
+    const { error: upErr } = await sb.storage.from(BUCKET).upload(path, p.blob, { contentType: 'image/jpeg' });
+    if(!upErr){
+      await sb.from('sighting_photos').insert([{ sighting_id: editingId, storage_path: path, original_filename: p.filename || null }]);
+    }
+  }
+
+  const frUpdate = {};
+  if(frShotBlob){
+    const path = `${editingId}/frshot_${Date.now()}.jpg`;
+    const { error: upErr } = await sb.storage.from(BUCKET).upload(path, frShotBlob, { contentType: 'image/jpeg' });
+    if(!upErr){
+      if(existingFrShotPath) await sb.storage.from(BUCKET).remove([existingFrShotPath]);
+      frUpdate.fr_shot_path = path;
+    }
+  }else if(frShotRemoved && existingFrShotPath){
+    await sb.storage.from(BUCKET).remove([existingFrShotPath]);
+    frUpdate.fr_shot_path = null;
+  }
+
+  const { error } = await sb.from('sightings').update({
+    date: $('f_date').value || null,
+    time: $('f_time').value || null,
+    location: $('f_location').value.trim() || null,
+    category: $('f_category').value,
+    reg: reg || null,
+    type: type || null,
+    operator: $('f_operator').value.trim() || null,
+    flight_no: $('f_flightno').value.trim() || null,
+    route: $('f_route').value.trim() || null,
+    notes: $('f_notes').value.trim() || null,
+    ...frUpdate
+  }).eq('id', editingId);
+  if(error) throw error;
+
+  $('formPanel').classList.add('hidden');
+  resetForm();
+  toast('Zmeny uložené.', 1500);
+  loadGallery();
+  if(currentUser) loadPending();
+}
+
+$('btnSave').addEventListener('click', async () => {
+  const reg = $('f_reg').value.trim();
+  const type = $('f_type').value.trim();
+  if(!reg && !type){ toast('Zadaj aspoň registráciu alebo typ lietadla.'); return; }
+
+  $('btnSave').disabled = true;
+  toast(editingId ? 'Ukladám zmeny...' : 'Odosielam...', 4000);
+  try{
+    if(editingId) await submitEdit(reg, type);
+    else await submitNew(reg, type);
+  }catch(e){
+    toast((editingId ? 'Uloženie zlyhalo: ' : 'Odoslanie zlyhalo: ') + (e.message || e));
+  }finally{
+    $('btnSave').disabled = false;
+  }
+});
+
+/* ---------- auth ---------- */
+$('authToggle').addEventListener('click', () => {
+  if(currentUser){ logout(); }
+  else{ $('loginPanel').classList.toggle('hidden'); }
+});
+$('btnLoginCancel').addEventListener('click', () => $('loginPanel').classList.add('hidden'));
+$('btnLoginSubmit').addEventListener('click', async () => {
+  const email = $('l_email').value.trim();
+  const password = $('l_password').value;
+  if(!email || !password){ toast('Zadaj email a heslo.'); return; }
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if(error){ toast('Prihlásenie zlyhalo: ' + error.message); return; }
+  $('loginPanel').classList.add('hidden');
+  $('l_password').value = '';
+  toast('Prihlásený.', 1500);
+});
+
+async function logout(){
+  await sb.auth.signOut();
+  toast('Odhlásený.', 1200);
+}
+
+function updateAuthUI(){
+  if(currentUser){
+    $('authArea').innerHTML = `Admin: ${escapeHtml(currentUser.email)} · <span class="link" id="authToggle">Odhlásiť</span>`;
+    $('btnPending').classList.remove('hidden');
+  }else{
+    $('authArea').innerHTML = `<span class="link" id="authToggle">Prihlásenie pre správcu</span>`;
+    $('btnPending').classList.add('hidden');
+    $('pendingPanel').classList.add('hidden');
+  }
+  $('authToggle').addEventListener('click', () => {
+    if(currentUser){ logout(); } else { $('loginPanel').classList.toggle('hidden'); }
+  });
+}
+
+sb.auth.onAuthStateChange((event, session) => {
+  currentUser = session ? session.user : null;
+  updateAuthUI();
+  if(currentUser) loadPending(); else { pendingEntries = []; renderPending(); }
+  render();
+});
+
+/* ---------- pending queue (admin) ---------- */
+$('btnPending').addEventListener('click', () => {
+  $('pendingPanel').classList.toggle('hidden');
+});
+
+async function loadPending(){
+  if(!currentUser) return;
+  const { data, error } = await sb.from('sightings').select('*, sighting_photos(*)').eq('status', 'pending').order('created_at', { ascending: false });
+  if(error){ toast('Chyba pri načítaní čakajúcich: ' + error.message); return; }
+  pendingEntries = (data || []).map(mapRow);
+  $('btnPending').textContent = `Čakajúce (${pendingEntries.length})`;
+  renderPending();
+}
+
+function renderPending(){
+  $('btnPending').textContent = `Čakajúce (${pendingEntries.length})`;
+  if(pendingEntries.length === 0){
+    $('pendingList').innerHTML = '<div class="photo-rows__empty">Žiadne čakajúce záznamy.</div>';
+    return;
+  }
+  $('pendingList').innerHTML = pendingEntries.map(en => `
+    <div class="pending-card">
+      <img src="${en.photos[0] ? en.photos[0].url : ''}" style="${en.photos[0] ? '' : 'display:none;'}">
+      <div class="pending-card__info">
+        <b>${escapeHtml(en.reg || '—')}</b> · ${escapeHtml(en.type || '')}<br>
+        ${escapeHtml(en.operator || '')} ${en.route ? '· ' + escapeHtml(en.route) : ''}<br>
+        ${escapeHtml(en.date || '')} ${escapeHtml(en.time || '')} · ${escapeHtml(en.location || '')}<br>
+        ${en.photos.length} fotiek${en.frShotUrl ? ' · má FR screenshot' : ''}
+        ${en.notes ? '<br>' + escapeHtml(en.notes) : ''}
+      </div>
+      <div class="pending-card__actions">
+        <button class="btn-approve" data-approve="${en.id}">Schváliť</button>
+        <button class="btn-edit" data-edit-pending="${en.id}">Upraviť</button>
+        <button class="btn-reject" data-reject="${en.id}">Zamietnuť</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+$('pendingList').addEventListener('click', async (e) => {
+  const appr = e.target.closest('[data-approve]');
+  const editBtn = e.target.closest('[data-edit-pending]');
+  const rej = e.target.closest('[data-reject]');
+  if(editBtn){
+    const entry = pendingEntries.find(e2 => e2.id === editBtn.getAttribute('data-edit-pending'));
+    if(entry) openEditForm(entry);
+    return;
+  }
+  if(appr){
+    const id = appr.getAttribute('data-approve');
+    const { error } = await sb.from('sightings').update({ status: 'approved' }).eq('id', id);
+    if(error){ toast('Chyba: ' + error.message); return; }
+    toast('Schválené.', 1200);
+    pendingEntries = pendingEntries.filter(e2 => e2.id !== id);
+    renderPending();
+    loadGallery();
+  }
+  if(rej){
+    const id = rej.getAttribute('data-reject');
+    const entry = pendingEntries.find(e2 => e2.id === id);
+    if(!confirm('Naozaj zamietnuť a zmazať tento záznam?')) return;
+    await deleteSighting(entry);
+    pendingEntries = pendingEntries.filter(e2 => e2.id !== id);
+    renderPending();
+  }
+});
+
+async function deleteSighting(entry){
+  if(!entry) return;
+  const paths = entry.photos.map(p => p.path);
+  if(entry.frShotPath) paths.push(entry.frShotPath);
+  if(paths.length){ await sb.storage.from(BUCKET).remove(paths); }
+  const { error } = await sb.from('sightings').delete().eq('id', entry.id);
+  if(error){ toast('Chyba pri mazaní: ' + error.message); return; }
+  toast('Zmazané.', 1200);
+}
+
+/* ---------- gallery ---------- */
+function mapRow(row){
+  const photos = (row.sighting_photos || []).map(p => ({
+    id: p.id,
+    path: p.storage_path,
+    filename: p.original_filename,
+    url: sb.storage.from(BUCKET).getPublicUrl(p.storage_path).data.publicUrl
+  }));
+  return {
+    id: row.id, date: row.date, time: row.time, location: row.location, category: row.category,
+    reg: row.reg, type: row.type, operator: row.operator, flightNo: row.flight_no, route: row.route,
+    notes: row.notes, frShotPath: row.fr_shot_path,
+    frShotUrl: row.fr_shot_path ? sb.storage.from(BUCKET).getPublicUrl(row.fr_shot_path).data.publicUrl : null,
+    photos, status: row.status
+  };
+}
+
+async function loadGallery(){
+  const { data, error } = await sb.from('sightings').select('*, sighting_photos(*)').eq('status', 'approved').order('created_at', { ascending: false });
+  if(error){ toast('Chyba pri načítaní galérie: ' + error.message); return; }
+  state.entries = (data || []).map(mapRow);
+  render();
+}
+
+function tileHtml(en){
+  const first = en.photos[0];
+  const photoInner = first ? `<img class="tile__photo" src="${first.url}" alt="${escapeHtml(en.type || 'lietadlo')}">` : `<div class="tile__nophoto">bez fotky</div>`;
+  const countBadge = en.photos.length > 1 ? `<div class="tile__count">+${en.photos.length - 1}</div>` : '';
+  const adminDel = currentUser ? `<button class="tile__admin-del" data-admin-del="${en.id}" title="Zmazať">✕</button>` : '';
+  const adminEdit = currentUser ? `<button class="tile__admin-edit" data-admin-edit="${en.id}" title="Upraviť">✎</button>` : '';
+  return `
+  <div class="tile" data-id="${en.id}">
+    <div class="tile__photo-wrap" ${en.photos.length ? `data-photo="${en.id}"` : ''}>
+      <div class="tile__tab tile__tab--${en.category || 'other'}"></div>
+      ${photoInner}
+      ${countBadge}
+      ${adminDel}
+      ${adminEdit}
+    </div>
+    <div class="tile__footer">
+      <div class="tile__reg">${escapeHtml(en.reg || '—')}</div>
+      <div class="tile__type">${escapeHtml(en.type || '')}${en.operator ? ' · ' + escapeHtml(en.operator) : ''}</div>
+      <div class="tile__meta">${escapeHtml(en.date || '')} ${escapeHtml(en.time || '')}</div>
+      ${en.frShotUrl ? `<div class="tile__fr-link" data-fr="${en.id}">FlightRadar screenshot →</div>` : ''}
+    </div>
+  </div>`;
+}
+
+function render(){
+  const search = $('search').value.trim().toLowerCase();
+  const filterLoc = $('filterLoc').value;
+  const filterCat = $('filterCat').value;
+  const filterType = $('filterType').value;
+
+  const locs = [...new Set(state.entries.map(e => e.location).filter(Boolean))].sort();
+  const curLoc = $('filterLoc').value;
+  $('filterLoc').innerHTML = '<option value="">Všetky lokality</option>' + locs.map(l => `<option value="${escapeHtml(l)}">${escapeHtml(l)}</option>`).join('');
+  $('filterLoc').value = locs.includes(curLoc) ? curLoc : '';
+  $('locationOptions').innerHTML = locs.map(l => `<option value="${escapeHtml(l)}"></option>`).join('');
+
+  const types = [...new Set(state.entries.map(e => e.type).filter(Boolean))].sort();
+  const curType = $('filterType').value;
+  $('filterType').innerHTML = '<option value="">Všetky typy</option>' + types.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+  $('filterType').value = types.includes(curType) ? curType : '';
+
+  let list = state.entries.filter(en => {
+    if(filterLoc && en.location !== filterLoc) return false;
+    if(filterCat && en.category !== filterCat) return false;
+    if(filterType && en.type !== filterType) return false;
+    if(search){
+      const hay = [en.reg,en.type,en.operator,en.route,en.flightNo,en.location,en.notes].join(' ').toLowerCase();
+      if(!hay.includes(search)) return false;
+    }
+    return true;
+  });
+
+  $('count').textContent = `${list.length} / ${state.entries.length} SCHVÁLENÝCH ZÁZNAMOV`;
+
+  const byRecency = (a,b) => {
+    const da = (a.date||'') + (a.time||'');
+    const db = (b.date||'') + (b.time||'');
+    return db.localeCompare(da);
+  };
+
+  if($('sortMode').value === 'type'){
+    const groups = {};
+    list.forEach(en => {
+      const key = (en.type || '').trim() || 'Neurčené';
+      if(!groups[key]) groups[key] = [];
+      groups[key].push(en);
+    });
+    const names = Object.keys(groups).sort((a,b) => a.localeCompare(b));
+    names.forEach(n => groups[n].sort(byRecency));
+    $('galleryList').innerHTML = names.map(name => `
+      <div class="type-group">
+        <div class="type-group__header">${escapeHtml(name)} <span class="type-group__count">(${groups[name].length})</span></div>
+        <div class="tile-grid">${groups[name].map(tileHtml).join('')}</div>
+      </div>
+    `).join('');
+  }else{
+    list.sort(byRecency);
+    $('galleryList').innerHTML = `<div class="tile-grid">${list.map(tileHtml).join('')}</div>`;
+  }
+  $('empty').classList.toggle('hidden', state.entries.length !== 0);
+}
+
+$('galleryList').addEventListener('click', async (e) => {
+  const photoEl = e.target.closest('[data-photo]');
+  const frEl = e.target.closest('[data-fr]');
+  const delEl = e.target.closest('[data-admin-del]');
+  const editEl = e.target.closest('[data-admin-edit]');
+  if(delEl){
+    const id = delEl.getAttribute('data-admin-del');
+    const entry = state.entries.find(en => en.id === id);
+    if(!confirm('Naozaj zmazať tento schválený záznam?')) return;
+    await deleteSighting(entry);
+    loadGallery();
+    return;
+  }
+  if(editEl){
+    const entry = state.entries.find(en => en.id === editEl.getAttribute('data-admin-edit'));
+    if(entry) openEditForm(entry);
+    return;
+  }
+  if(photoEl){
+    const entry = state.entries.find(en => en.id === photoEl.getAttribute('data-photo'));
+    if(entry) openLightbox(entry, 'photo', 0);
+    return;
+  }
+  if(frEl){
+    const entry = state.entries.find(en => en.id === frEl.getAttribute('data-fr'));
+    if(entry) openLightbox(entry, 'fr', 0);
+    return;
+  }
+});
+
+['search','filterLoc','filterCat','filterType','sortMode'].forEach(id => $(id).addEventListener(id === 'search' ? 'input' : 'change', render));
+
+/* ---------- lightbox ---------- */
+function openLightbox(entry, mode, photoIndex){
+  photoIndex = photoIndex || 0;
+  let src;
+  const photos = entry.photos;
+  if(mode === 'fr'){
+    src = entry.frShotUrl;
+    if(!src) return;
+  }else{
+    if(!photos.length) return;
+    photoIndex = ((photoIndex % photos.length) + photos.length) % photos.length;
+    src = photos[photoIndex].url;
+  }
+  lightboxState = { entry, mode, photoIndex };
+
+  const parts = [`<b>${escapeHtml(entry.reg || '')}</b> · ${escapeHtml(entry.type || '')}`];
+  if(entry.operator) parts.push(escapeHtml(entry.operator));
+  if(entry.route) parts.push(escapeHtml(entry.route));
+  if(entry.date) parts.push(`${escapeHtml(entry.date)} ${escapeHtml(entry.time || '')}`.trim());
+  let caption = parts.join(' · ');
+  if(mode === 'photo' && photos.length > 1) caption += `<br><span class="lightbox__count">Foto ${photoIndex + 1}/${photos.length}</span>`;
+  if(entry.notes) caption += `<br><span style="color: var(--paper);">${escapeHtml(entry.notes)}</span>`;
+  const hasOther = mode === 'fr' ? photos.length > 0 : !!entry.frShotUrl;
+  if(hasOther){
+    const label = mode === 'fr' ? '← späť na fotku' : 'FlightRadar screenshot →';
+    caption += `<br><span class="lightbox__fr-toggle" id="lightboxToggle">${label}</span>`;
+  }
+
+  $('lightboxImg').src = src;
+  $('lightboxCaption').innerHTML = caption;
+  $('lightbox').classList.remove('hidden');
+  const showNav = mode === 'photo' && photos.length > 1;
+  $('lightboxPrev').style.display = showNav ? 'flex' : 'none';
+  $('lightboxNext').style.display = showNav ? 'flex' : 'none';
+
+  const toggle = document.getElementById('lightboxToggle');
+  if(toggle) toggle.onclick = () => openLightbox(entry, mode === 'fr' ? 'photo' : 'fr', photoIndex);
+}
+function closeLightbox(){ $('lightbox').classList.add('hidden'); lightboxState = null; }
+$('lightboxClose').addEventListener('click', closeLightbox);
+document.querySelector('.lightbox__backdrop').addEventListener('click', closeLightbox);
+document.addEventListener('keydown', (e) => {
+  if(e.key === 'Escape') closeLightbox();
+  if(lightboxState && lightboxState.mode === 'photo'){
+    if(e.key === 'ArrowLeft') openLightbox(lightboxState.entry, 'photo', lightboxState.photoIndex - 1);
+    if(e.key === 'ArrowRight') openLightbox(lightboxState.entry, 'photo', lightboxState.photoIndex + 1);
+  }
+});
+$('lightboxPrev').addEventListener('click', () => { if(lightboxState) openLightbox(lightboxState.entry, 'photo', lightboxState.photoIndex - 1); });
+$('lightboxNext').addEventListener('click', () => { if(lightboxState) openLightbox(lightboxState.entry, 'photo', lightboxState.photoIndex + 1); });
+
+/* ---------- init ---------- */
+renderPhotoRows();
+loadGallery();
+sb.auth.getSession().then(({ data }) => {
+  currentUser = data.session ? data.session.user : null;
+  updateAuthUI();
+  if(currentUser) loadPending();
+});
+</script>
+</body>
+</html>
