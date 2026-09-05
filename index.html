@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spotting — verejný spotting log</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9C%88%EF%B8%8F%3C/text%3E%3C/svg%3E">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap');
+
+:root{
+  --bg: #F3F6FB;
+  --surface: #FFFFFF;
+  --surface-alt: #EEF3FA;
+  --ink: #101828;
+  --ink-soft: #475467;
+  --muted: #98A2B3;
+  --primary: #2563EB;
+  --primary-dark: #1D4ED8;
+  --primary-soft: #DBEAFE;
+  --accent: #F59E0B;
+  --border: #E4E9F2;
+  --danger: #E11D48;
+  --danger-soft: #FDE7EC;
+  --teal: #0D9488;
+  --olive: #65A30D;
+  --rose: #DB2777;
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --radius: 14px;
+  --shadow: 0 1px 2px rgba(16,24,40,0.04), 0 6px 16px rgba(16,24,40,0.06);
+}
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  background: var(--bg);
+  color: var(--ink-soft);
+  font-family: var(--font-body);
+  min-height:100vh;
+  padding: 32px 18px 60px;
+}
+.board{ max-width: 960px; margin: 0 auto; }
+
+.board__header{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px; margin-bottom:8px; }
+.board__title{ display:flex; align-items:center; gap:10px; }
+.board__logo{ width:30px; height:30px; color: var(--primary); flex-shrink:0; }
+.board__title h1{ font-family: var(--font-display); font-weight:700; font-size: 26px; color: var(--ink); margin:0; letter-spacing: -0.5px; }
+.board__auth{ font-family: var(--font-body); font-size:13px; color: var(--muted); }
+.board__auth .link{ color: var(--primary); cursor:pointer; font-weight:600; }
+.board__auth .link:hover{ text-decoration: underline; }
+
+.stats-bar{ font-family: var(--font-body); font-size:13px; color: var(--ink-soft); margin: 4px 0 20px; padding-bottom:16px; border-bottom:1px solid var(--border); }
+
+.board__actions{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px; }
+
+.btn{ font-family: var(--font-body); font-size:14px; font-weight:600; border:none; border-radius:10px; padding:11px 18px; cursor:pointer; transition: background .15s ease, border-color .15s ease, color .15s ease; }
+.btn:active{ transform: translateY(1px); }
+.btn:disabled{ opacity:0.5; cursor:default; }
+.btn--amber{ background: var(--primary); color:#fff; }
+.btn--amber:hover{ background: var(--primary-dark); }
+.btn--ghost{ background: var(--surface); color: var(--ink-soft); border:1px solid var(--border); }
+.btn--ghost:hover{ color: var(--ink); border-color: var(--muted); }
+.btn--danger{ background: transparent; color: var(--danger); border:1px solid var(--danger-soft); }
+.btn--danger:hover{ background: var(--danger-soft); }
+.btn--small{ padding:7px 13px; font-size:12.5px; border-radius:8px; }
+
+.panel{ background: var(--surface); border:1px solid var(--border); border-radius: var(--radius); padding:22px; margin-bottom:22px; box-shadow: var(--shadow); }
+.panel.hidden{ display:none; }
+.panel h2{ font-family: var(--font-display); font-size:17px; font-weight:600; color:var(--ink); margin:0 0 16px; }
+.panel p{ font-family: var(--font-body); font-size:14px; line-height:1.6; color: var(--ink-soft); }
+
+.form-grid{ display:grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap:14px; }
+.field{ display:flex; flex-direction:column; gap:6px; }
+.field label{ font-size:12.5px; color:var(--ink-soft); font-family:var(--font-body); font-weight:600; }
+.field input, .field select, .field textarea{ background: var(--surface-alt); border:1px solid var(--border); color: var(--ink); font-family: var(--font-body); font-size:14px; padding:10px 12px; border-radius:9px; }
+.field input:focus, .field select:focus, .field textarea:focus{ outline:none; border-color: var(--primary); background: #fff; box-shadow: 0 0 0 3px var(--primary-soft); }
+.field--wide{ grid-column: 1 / -1; }
+.field textarea{ font-family: var(--font-body); resize:vertical; min-height:56px; }
+.form-actions{ display:flex; gap:10px; margin-top:18px; justify-content:flex-end; }
+
+.photo-rows{ display:flex; flex-direction:column; gap:8px; margin-bottom:10px; }
+.photo-rows__empty{ font-family: var(--font-body); font-size:13px; color: var(--muted); padding:8px 2px; }
+.photo-row{ display:flex; align-items:center; gap:10px; background: var(--surface-alt); border:1px solid var(--border); border-radius:9px; padding:9px 12px; flex-wrap:wrap; }
+.photo-row img{ width:42px; height:42px; object-fit:cover; border-radius:7px; border:1px solid var(--border); flex-shrink:0; }
+.photo-row input[type=file]{ font-family: var(--font-body); font-size:12px; color: var(--ink-soft); max-width:170px; }
+.photo-row__remove{ background:#fff; border:1px solid var(--danger-soft); color: var(--danger); border-radius:7px; width:28px; height:28px; cursor:pointer; flex-shrink:0; font-family: var(--font-body); }
+.photo-row__remove:hover{ background: var(--danger); color:#fff; border-color: var(--danger); }
+.file-btn{
+  display:inline-flex; align-items:center; gap:6px;
+  background: var(--surface); border:1px solid var(--border); color: var(--ink-soft);
+  font-family: var(--font-body); font-size:12.5px; font-weight:600;
+  padding:8px 14px; border-radius:8px; cursor:pointer; white-space:nowrap;
+  transition: background .15s ease, border-color .15s ease, color .15s ease;
+}
+.file-btn:hover{ background: var(--surface-alt); border-color: var(--muted); color: var(--ink); }
+.file-input-hidden{
+  position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
+  clip:rect(0,0,0,0); white-space:nowrap; border:0;
+}
+.file-name{ font-family: var(--font-body); font-size:11.5px; color: var(--muted); flex:1; min-width:80px; word-break:break-all; }
+
+.controls{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:16px; }
+.controls input, .controls select{ background: var(--surface); border:1px solid var(--border); color: var(--ink); font-family: var(--font-body); font-size:13.5px; padding:9px 12px; border-radius:9px; }
+.controls input:focus, .controls select:focus{ outline:none; border-color: var(--primary); }
+#search{ flex:1; min-width:180px; }
+.controls__actions{ display:flex; gap:8px; margin-left:auto; }
+
+.count{ font-family: var(--font-body); font-size:12.5px; color: var(--muted); margin-bottom:12px; }
+.loading{ text-align:center; padding: 60px 20px; color: var(--muted); font-family: var(--font-body); font-size:14px; }
+
+.tile-grid{ display:grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap:16px; }
+.type-group{ margin-bottom: 26px; }
+.type-group__header{ font-family: var(--font-display); font-size: 15px; font-weight:600; color: var(--ink); padding: 4px 0; margin-bottom: 12px; }
+.type-group__count{ color: var(--muted); font-family: var(--font-body); font-weight:400; font-size:13px; }
+
+.tile{ background: var(--surface); border-radius: var(--radius); overflow:hidden; box-shadow: var(--shadow); display:flex; flex-direction:column; transition: transform .15s ease, box-shadow .15s ease; }
+.tile:hover{ transform: translateY(-2px); box-shadow: 0 4px 6px rgba(16,24,40,0.05), 0 12px 24px rgba(16,24,40,0.09); }
+.tile__photo-wrap{ position:relative; width:100%; aspect-ratio: 4/3; background: var(--surface-alt); overflow:hidden; cursor:pointer; }
+.tile__photo-wrap:hover .tile__photo{ transform: scale(1.04); }
+.tile__photo{ width:100%; height:100%; object-fit:cover; display:block; transition: transform .25s ease; }
+.tile__nophoto{ display:flex; align-items:center; justify-content:center; height:100%; color: var(--muted); font-family: var(--font-body); font-size:12px; text-align:center; padding:8px; }
+.tile__tab{ position:absolute; top:10px; left:10px; width:11px; height:11px; border-radius:50%; z-index:1; box-shadow: 0 0 0 3px rgba(255,255,255,0.85); }
+.tile__tab--commercial{ background: var(--primary); }
+.tile__tab--cargo{ background: var(--accent); }
+.tile__tab--military{ background: var(--olive); }
+.tile__tab--ga{ background: var(--rose); }
+.tile__tab--other{ background: var(--muted); }
+.tile__count{ position:absolute; bottom:8px; right:8px; background: rgba(16,24,40,0.72); color: #fff; font-family: var(--font-body); font-weight:600; font-size:11px; padding:3px 8px; border-radius:20px; z-index:2; }
+.tile__admin-del{ position:absolute; top:8px; right:8px; z-index:3; width:26px; height:26px; border-radius:50%; border:none; background: rgba(225,29,72,0.9); color:#fff; cursor:pointer; font-size:13px; }
+.tile__admin-del:hover{ background: var(--danger); }
+.tile__admin-edit{ position:absolute; top:8px; right:40px; z-index:3; width:26px; height:26px; border-radius:50%; border:none; background: rgba(37,99,235,0.9); color:#fff; cursor:pointer; font-size:13px; }
+.tile__admin-edit:hover{ background: var(--primary); }
+.tile__footer{ padding:12px 14px 14px; display:flex; flex-direction:column; gap:4px; }
+.tile__reg{ font-family: var(--font-mono); font-weight:600; font-size:14px; color: var(--ink); letter-spacing:0.3px; }
+.tile__type{ font-family: var(--font-body); font-size:12.5px; color: var(--ink-soft); font-weight:500; }
+.tile__meta{ font-family: var(--font-body); font-size:11.5px; color: var(--muted); }
+.tile__fr-link{ font-family: var(--font-body); font-size:12px; color: var(--primary); cursor:pointer; font-weight:600; margin-top:4px; width: fit-content; }
+.tile__fr-link:hover{ text-decoration: underline; }
+
+.pending-card{ background: var(--surface); border:1px solid var(--border); border-radius: var(--radius); padding:14px 16px; margin-bottom:12px; display:flex; gap:14px; align-items:flex-start; flex-wrap:wrap; box-shadow: var(--shadow); }
+.pending-card img{ width:84px; height:84px; object-fit:cover; border-radius:10px; flex-shrink:0; }
+.pending-card__info{ flex:1; min-width:180px; font-family: var(--font-body); font-size:13px; color: var(--ink-soft); line-height:1.6; }
+.pending-card__info b{ color: var(--ink); font-family: var(--font-display); font-size:15px; }
+.pending-card__actions{ display:flex; gap:8px; flex-wrap:wrap; }
+.pending-card__actions button{ font-family: var(--font-body); font-weight:600; font-size:12.5px; border-radius:8px; padding:7px 14px; cursor:pointer; border:none; }
+.btn-approve{ background: var(--teal); color:#fff; }
+.btn-approve:hover{ background: #0B7A6F; }
+.btn-edit{ background: var(--primary-soft); color: var(--primary-dark); }
+.btn-edit:hover{ background: #C7DDFC; }
+.btn-reject{ background: transparent; border:1px solid var(--danger-soft) !important; color: var(--danger); }
+.btn-reject:hover{ background: var(--danger-soft); }
+
+.empty{ text-align:center; padding: 60px 20px; color: var(--muted); font-family: var(--font-body); font-size:14px; border:1.5px dashed var(--border); border-radius: var(--radius); }
+.empty.hidden{ display:none; }
+
+.toast{ position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background: var(--ink); color:#fff; font-family: var(--font-body); font-size:13px; font-weight:500; padding:12px 18px; border-radius:10px; box-shadow: 0 8px 24px rgba(16,24,40,0.25); z-index:20; max-width:90vw; }
+.toast.hidden{ display:none; }
+
+.footnote{ margin-top:30px; font-size:12.5px; color: var(--muted); font-family: var(--font-body); line-height:1.7; border-top:1px solid var(--border); padding-top:16px; }
+
+.lightbox{ position:fixed; inset:0; z-index:50; display:flex; align-items:center; justify-content:center; padding: 24px; }
+.lightbox.hidden{ display:none; }
+.lightbox__backdrop{ position:absolute; inset:0; background: rgba(16,24,40,0.85); backdrop-filter: blur(2px); }
+.lightbox__content{
+  position:relative; display:flex; flex-direction:row; align-items:stretch;
+  max-width: 900px; width:100%; max-height: 88vh;
+  background: var(--surface); border-radius: 16px; overflow:hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+}
+.lightbox__media{ position:relative; flex: 1 1 60%; min-width:0; background:#0d1116; display:flex; align-items:center; justify-content:center; }
+.lightbox__media img{ max-width:100%; max-height: 88vh; object-fit:contain; display:block; }
+.lightbox__details{ flex: 0 0 280px; background: var(--surface); padding:22px; overflow-y:auto; max-height:88vh; }
+.lightbox__table{ width:100%; border-collapse:collapse; font-family: var(--font-body); font-size:13px; margin-bottom:14px; }
+.lightbox__table tr{ border-bottom:1px solid var(--border); }
+.lightbox__table tr:last-child{ border-bottom:none; }
+.lightbox__table td{ padding:8px 4px; vertical-align:top; }
+.lightbox__table td:first-child{ color: var(--muted); font-weight:600; width:38%; padding-right:10px; white-space:nowrap; }
+.lightbox__table td:last-child{ color: var(--ink); font-weight:500; }
+.lightbox__caption{ font-family: var(--font-body); font-size:13px; color: var(--ink-soft); line-height:1.6; }
+.lightbox__count{ color: var(--primary); font-weight:600; display:block; margin-bottom:8px; }
+.lightbox__fr-toggle{ color: var(--primary); cursor:pointer; font-weight:600; text-decoration: underline; }
+.lightbox__nav{ position:absolute; top:50%; transform:translateY(-50%); width:42px; height:42px; border-radius:50%; background: rgba(255,255,255,0.92); color: var(--ink); border:none; font-size:20px; line-height:1; cursor:pointer; font-family: var(--font-body); display:none; align-items:center; justify-content:center; box-shadow: 0 4px 12px rgba(0,0,0,0.25); z-index:2; }
+.lightbox__nav:hover{ background: #fff; }
+.lightbox__nav--prev{ left:10px; }
+.lightbox__nav--next{ right:10px; }
+.lightbox__close{ position:absolute; top:12px; right:12px; z-index:3; width:32px; height:32px; border-radius:50%; background: rgba(255,255,255,0.92); color: var(--ink); border:none; font-size:15px; cursor:pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+.lightbox__close:hover{ background: #fff; }
+
+@media (max-width:640px){
+  .lightbox__content{ flex-direction:column; max-height:92vh; max-width:96vw; }
+  .lightbox__media{ flex:0 0 auto; max-height:44vh; }
+  .lightbox__media img{ max-height:44vh; }
+  .lightbox__details{ flex:1; max-height:none; }
+}
+
+@media (max-width:560px){
+  .board__title h1{ font-size:21px; }
+}
+</style>
+</head>
+<body>
+<div class="board">
+  <header class="board__header">
+    <div class="board__title">
+      <svg class="board__logo" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
+        <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2.5 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/>
+      </svg>
+      <h1>Spotting</h1>
+    </div>
+    <div class="board__auth" id="authArea">
+      <span class="link" id="authToggle">Prihlásenie pre správcu</span>
+    </div>
+  </header>
+
+  <div id="statsBar" class="stats-bar"></div>
+
+  <div class="board__actions">
+    <button id="btnNew" class="btn btn--amber">+ Pridať pozorovanie</button>
+    <button id="btnPending" class="btn btn--ghost hidden">Čakajúce (0)</button>
+  </div>
+
+  <div id="loginPanel" class="panel hidden">
+    <h2>PRIHLÁSENIE SPRÁVCU</h2>
+    <div class="form-grid">
+      <div class="field"><label>Email</label><input type="email" id="l_email"></div>
+      <div class="field"><label>Heslo</label><input type="password" id="l_password"></div>
+    </div>
+    <div class="form-actions">
+      <button id="btnLoginCancel" class="btn btn--ghost">Zrušiť</button>
+      <button id="btnLoginSubmit" class="btn btn--amber">Prihlásiť</button>
+    </div>
+  </div>
+
+  <div id="thanksPanel" class="panel hidden">
+    <h2>ĎAKUJEME</h2>
+    <p>Tvoje pozorovanie bolo odoslané a čaká na schválenie správcom. Po schválení sa objaví vo verejnej galérii nižšie.</p>
+    <div class="form-actions"><button id="btnThanksOk" class="btn btn--amber">OK</button></div>
+  </div>
+
+  <div id="formPanel" class="panel hidden">
+    <h2 id="formTitle">NOVÉ POZOROVANIE</h2>
+    <div class="form-grid">
+      <div class="field"><label>Dátum</label><input type="date" id="f_date"></div>
+      <div class="field"><label>Čas</label><input type="time" id="f_time"></div>
+      <div class="field">
+        <label>Lokalita spottingu</label>
+        <input type="text" id="f_location" list="locationOptions" placeholder="napr. Chmelnica" autocomplete="off">
+        <datalist id="locationOptions"></datalist>
+      </div>
+      <div class="field"><label>Kategória</label>
+        <select id="f_category">
+          <option value="commercial">Komerčné</option>
+          <option value="cargo">Nákladné</option>
+          <option value="military">Vojenské</option>
+          <option value="ga">Všeobecné letectvo</option>
+          <option value="other">Iné</option>
+        </select>
+      </div>
+      <div class="field"><label>Registrácia</label><input type="text" id="f_reg" placeholder="OK-ABC"></div>
+      <div class="field">
+        <label>Typ lietadla</label>
+        <input type="text" id="f_type" placeholder="Boeing 737, Airbus A320...">
+      </div>
+      <div class="field"><label>Dopravca / prevádzkovateľ</label><input type="text" id="f_operator"></div>
+      <div class="field"><label>Číslo letu</label><input type="text" id="f_flightno" placeholder="WZZ145"></div>
+      <div class="field"><label>Trasa</label><input type="text" id="f_route" placeholder="LZKZ → EGLL"></div>
+      <div class="field field--wide"><label>Poznámky</label><textarea id="f_notes" placeholder="svetlo, uhol, čokoľvek zaujímavé..."></textarea></div>
+      <div class="field field--wide">
+        <label>Fotografie (viac uhlov toho istého preletu)</label>
+        <div id="photoRows" class="photo-rows"></div>
+        <button type="button" id="btnAddPhoto" class="btn btn--ghost btn--small">+ Pridať fotku</button>
+      </div>
+      <div class="field field--wide">
+        <label>FlightRadar screenshot (voliteľné)</label>
+        <div class="photo-row" id="frRow">
+          <img id="f_frshot_preview" style="display:none;">
+          <label class="file-btn">
+            Vybrať screenshot
+            <input type="file" id="f_frshot" accept="image/*" class="file-input-hidden">
+          </label>
+          <button type="button" id="btnRemoveFrShot" class="photo-row__remove hidden">✕</button>
+        </div>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button id="btnCancel" class="btn btn--ghost">Zrušiť</button>
+      <button id="btnSave" class="btn btn--amber">Odoslať na schválenie</button>
+    </div>
+  </div>
+
+  <div id="pendingPanel" class="panel hidden">
+    <h2>ČAKAJÚCE NA SCHVÁLENIE</h2>
+    <div id="pendingList"></div>
+  </div>
+
+  <div class="controls">
+    <input id="search" placeholder="Hľadať (typ, registrácia, dopravca, trasa...)">
+    <select id="filterLoc"><option value="">Všetky lokality</option></select>
+    <select id="filterType"><option value="">Všetky typy</option></select>
+    <select id="filterCat">
+      <option value="">Všetky kategórie</option>
+      <option value="commercial">Komerčné</option>
+      <option value="cargo">Nákladné</option>
+      <option value="military">Vojenské</option>
+      <option value="ga">Všeobecné letectvo</option>
+      <option value="other">Iné</option>
+    </select>
+    <select id="sortMode">
+      <option value="type">Zoskupiť podľa typu</option>
+      <option value="operator">Zoskupiť podľa aerolinky</option>
+      <option value="date">Zoradiť podľa dátumu</option>
+    </select>
+  </div>
+
+  <div id="count" class="count"></div>
+  <div id="galleryList"></div>
+  <div id="empty" class="empty hidden">Zatiaľ žiadne schválené pozorovania.</div>
+
+  <div class="footnote">
+    Hocikto môže odoslať pozorovanie cez "+ Pridať pozorovanie" — objaví sa vo verejnej galérii až po schválení správcom. Fotky a dáta sú uložené v Supabase (databáza + úložisko), nie v tomto prehliadači — takže funguje odkiaľkoľvek a pre kohokoľvek.
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<div id="lightbox" class="lightbox hidden">
+  <div class="lightbox__backdrop"></div>
+  <div class="lightbox__content">
+    <button id="lightboxClose" class="lightbox__close">✕</button>
+    <div class="lightbox__media">
+      <button id="lightboxPrev" class="lightbox__nav lightbox__nav--prev">‹</button>
+      <img id="lightboxImg" src="" alt="">
+      <button id="lightboxNext" class="lightbox__nav lightbox__nav--next">›</button>
+    </div>
+    <div class="lightbox__details">
+      <table id="lightboxTable" class="lightbox__table"></table>
+      <div id="lightboxCaption" class="lightbox__caption"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = 'https://ldrdbpwfhwnrgnnelyoj.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_ZrxP2pNTPA_mXZ22Fc6oEA_9CyZ48Hn';
+const BUCKET = 'spotting-photos';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const $ = (id) => document.getElementById(id);
+
+let state = { entries: [] };
+let pendingEntries = [];
+let currentUser = null;
+let currentPhotos = [];
+let existingPhotos = [];
+let removedPhotoIds = [];
+let frShotBlob = null;
+let frShotRemoved = false;
+let existingFrShotPath = null;
+let editingId = null;
+let lightboxState = null;
+
+function toast(msg, ms=3200){
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.remove('hidden');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(()=> t.classList.add('hidden'), ms);
+}
+
+function escapeHtml(str){
+  return (str || '').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function resizeImageToBlob(file, maxWidth=1600, quality=0.85){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxWidth / img.width);
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob((blob) => { blob ? resolve(blob) : reject(new Error('toBlob failed')); }, 'image/jpeg', quality);
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+/* ---------- photo rows (submission form) ---------- */
+function renderPhotoRows(){
+  const container = $('photoRows');
+  const existingRows = existingPhotos.map((p, idx) => `
+    <div class="photo-row" data-existing-idx="${idx}">
+      <img src="${p.url}" style="display:block;">
+      <span class="file-name">${escapeHtml(p.filename || 'existujúca fotka')}</span>
+      <button type="button" class="photo-row__remove" data-remove-existing-idx="${idx}">✕</button>
+    </div>
+  `).join('');
+  const newRows = currentPhotos.map((p, idx) => `
+    <div class="photo-row" data-idx="${idx}">
+      <img data-thumb="${idx}" src="${p.previewUrl || ''}" style="display:${p.previewUrl ? 'block' : 'none'};">
+      <label class="file-btn">
+        ${p.filename ? 'Zmeniť fotku' : 'Vybrať fotku'}
+        <input type="file" accept="image/*" data-file-idx="${idx}" class="file-input-hidden">
+      </label>
+      ${p.filename ? `<span class="file-name">${escapeHtml(p.filename)}</span>` : ''}
+      <button type="button" class="photo-row__remove" data-remove-idx="${idx}">✕</button>
+    </div>
+  `).join('');
+  const all = existingRows + newRows;
+  container.innerHTML = all || '<div class="photo-rows__empty">Zatiaľ žiadna fotka pridaná.</div>';
+}
+
+$('btnAddPhoto').addEventListener('click', () => {
+  currentPhotos.push({ blob: null, previewUrl: null, filename: '' });
+  renderPhotoRows();
+});
+
+$('photoRows').addEventListener('click', (e) => {
+  const rmExisting = e.target.closest('[data-remove-existing-idx]');
+  if(rmExisting){
+    const idx = parseInt(rmExisting.getAttribute('data-remove-existing-idx'), 10);
+    const removed = existingPhotos.splice(idx, 1)[0];
+    if(removed) removedPhotoIds.push({ dbId: removed.dbId, storagePath: removed.storagePath });
+    renderPhotoRows();
+    return;
+  }
+  const rm = e.target.closest('[data-remove-idx]');
+  if(rm){
+    const idx = parseInt(rm.getAttribute('data-remove-idx'), 10);
+    if(currentPhotos[idx] && currentPhotos[idx].previewUrl) URL.revokeObjectURL(currentPhotos[idx].previewUrl);
+    currentPhotos.splice(idx, 1);
+    renderPhotoRows();
+  }
+});
+
+$('photoRows').addEventListener('change', async (e) => {
+  const fileInput = e.target.closest('[data-file-idx]');
+  if(fileInput && fileInput.files[0]){
+    const idx = parseInt(fileInput.getAttribute('data-file-idx'), 10);
+    try{
+      const blob = await resizeImageToBlob(fileInput.files[0], 1600, 0.85);
+      if(currentPhotos[idx]){
+        if(currentPhotos[idx].previewUrl) URL.revokeObjectURL(currentPhotos[idx].previewUrl);
+        currentPhotos[idx].blob = blob;
+        currentPhotos[idx].filename = fileInput.files[0].name;
+        currentPhotos[idx].previewUrl = URL.createObjectURL(blob);
+        renderPhotoRows();
+      }
+    }catch(err){ toast('Nepodarilo sa spracovať fotografiu.'); }
+  }
+});
+
+$('f_frshot').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+  try{
+    frShotBlob = await resizeImageToBlob(file, 1000, 0.8);
+    frShotRemoved = false;
+    const url = URL.createObjectURL(frShotBlob);
+    $('f_frshot_preview').src = url;
+    $('f_frshot_preview').style.display = 'block';
+    $('btnRemoveFrShot').classList.remove('hidden');
+  }catch(err){ toast('Nepodarilo sa spracovať screenshot.'); }
+});
+
+$('btnRemoveFrShot').addEventListener('click', () => {
+  frShotRemoved = true;
+  frShotBlob = null;
+  $('f_frshot_preview').style.display = 'none';
+  $('btnRemoveFrShot').classList.add('hidden');
+  $('f_frshot').value = '';
+});
+
+/* ---------- submission form open/close ---------- */
+function resetForm(){
+  ['f_date','f_time','f_location','f_reg','f_type','f_operator','f_flightno','f_route','f_notes'].forEach(id => $(id).value = '');
+  $('f_category').value = 'commercial';
+  currentPhotos.forEach(p => { if(p.previewUrl) URL.revokeObjectURL(p.previewUrl); });
+  currentPhotos = [{ blob: null, previewUrl: null, filename: '' }];
+  existingPhotos = [];
+  removedPhotoIds = [];
+  renderPhotoRows();
+  frShotBlob = null;
+  frShotRemoved = false;
+  existingFrShotPath = null;
+  $('f_frshot').value = '';
+  $('f_frshot_preview').style.display = 'none';
+  $('btnRemoveFrShot').classList.add('hidden');
+  editingId = null;
+  $('formTitle').textContent = 'NOVÉ POZOROVANIE';
+  $('btnSave').textContent = 'Odoslať na schválenie';
+}
+
+function openEditForm(entry){
+  resetForm();
+  editingId = entry.id;
+  $('formTitle').textContent = 'UPRAVIŤ POZOROVANIE';
+  $('btnSave').textContent = 'Uložiť zmeny';
+  $('f_date').value = entry.date || '';
+  $('f_time').value = entry.time || '';
+  $('f_location').value = entry.location || '';
+  $('f_category').value = entry.category || 'commercial';
+  $('f_reg').value = entry.reg || '';
+  $('f_type').value = entry.type || '';
+  $('f_operator').value = entry.operator || '';
+  $('f_flightno').value = entry.flightNo || '';
+  $('f_route').value = entry.route || '';
+  $('f_notes').value = entry.notes || '';
+  existingPhotos = entry.photos.map(p => ({ dbId: p.id, storagePath: p.path, url: p.url, filename: p.filename }));
+  renderPhotoRows();
+  existingFrShotPath = entry.frShotPath || null;
+  if(entry.frShotUrl){
+    $('f_frshot_preview').src = entry.frShotUrl;
+    $('f_frshot_preview').style.display = 'block';
+    $('btnRemoveFrShot').classList.remove('hidden');
+  }
+  $('formPanel').classList.remove('hidden');
+  $('f_date').focus();
+}
+
+$('btnNew').addEventListener('click', () => {
+  resetForm();
+  $('formPanel').classList.remove('hidden');
+  $('f_date').focus();
+});
+$('btnCancel').addEventListener('click', () => { $('formPanel').classList.add('hidden'); resetForm(); });
+$('btnThanksOk').addEventListener('click', () => $('thanksPanel').classList.add('hidden'));
+
+async function submitNew(reg, type){
+  const sightingId = crypto.randomUUID();
+  let frPath = null;
+
+  if(frShotBlob){
+    frPath = `${sightingId}/frshot.jpg`;
+    const { error: frUpErr } = await sb.storage.from(BUCKET).upload(frPath, frShotBlob, { contentType: 'image/jpeg' });
+    if(frUpErr) throw frUpErr;
+  }
+
+  const { error } = await sb.from('sightings').insert([{
+    id: sightingId,
+    date: $('f_date').value || null,
+    time: $('f_time').value || null,
+    location: $('f_location').value.trim() || null,
+    category: $('f_category').value,
+    reg: reg || null,
+    type: type || null,
+    operator: $('f_operator').value.trim() || null,
+    flight_no: $('f_flightno').value.trim() || null,
+    route: $('f_route').value.trim() || null,
+    notes: $('f_notes').value.trim() || null,
+    fr_shot_path: frPath
+  }]);
+  if(error) throw error;
+
+  for(let i = 0; i < currentPhotos.length; i++){
+    const p = currentPhotos[i];
+    if(!p.blob) continue;
+    const path = `${sightingId}/photo_${i}_${Date.now()}.jpg`;
+    const { error: upErr } = await sb.storage.from(BUCKET).upload(path, p.blob, { contentType: 'image/jpeg' });
+    if(!upErr){
+      await sb.from('sighting_photos').insert([{ sighting_id: sightingId, storage_path: path, original_filename: p.filename || null }]);
+    }
+  }
+
+  $('formPanel').classList.add('hidden');
+  resetForm();
+  $('thanksPanel').classList.remove('hidden');
+  if(currentUser) loadPending();
+}
+
+async function submitEdit(reg, type){
+  if(removedPhotoIds.length){
+    const paths = removedPhotoIds.map(p => p.storagePath).filter(Boolean);
+    if(paths.length) await sb.storage.from(BUCKET).remove(paths);
+    const ids = removedPhotoIds.map(p => p.dbId).filter(Boolean);
+    if(ids.length) await sb.from('sighting_photos').delete().in('id', ids);
+  }
+
+  for(let i = 0; i < currentPhotos.length; i++){
+    const p = currentPhotos[i];
+    if(!p.blob) continue;
+    const path = `${editingId}/photo_edit_${Date.now()}_${i}.jpg`;
+    const { error: upErr } = await sb.storage.from(BUCKET).upload(path, p.blob, { contentType: 'image/jpeg' });
+    if(!upErr){
+      await sb.from('sighting_photos').insert([{ sighting_id: editingId, storage_path: path, original_filename: p.filename || null }]);
+    }
+  }
+
+  const frUpdate = {};
+  if(frShotBlob){
+    const path = `${editingId}/frshot_${Date.now()}.jpg`;
+    const { error: upErr } = await sb.storage.from(BUCKET).upload(path, frShotBlob, { contentType: 'image/jpeg' });
+    if(!upErr){
+      if(existingFrShotPath) await sb.storage.from(BUCKET).remove([existingFrShotPath]);
+      frUpdate.fr_shot_path = path;
+    }
+  }else if(frShotRemoved && existingFrShotPath){
+    await sb.storage.from(BUCKET).remove([existingFrShotPath]);
+    frUpdate.fr_shot_path = null;
+  }
+
+  const { error } = await sb.from('sightings').update({
+    date: $('f_date').value || null,
+    time: $('f_time').value || null,
+    location: $('f_location').value.trim() || null,
+    category: $('f_category').value,
+    reg: reg || null,
+    type: type || null,
+    operator: $('f_operator').value.trim() || null,
+    flight_no: $('f_flightno').value.trim() || null,
+    route: $('f_route').value.trim() || null,
+    notes: $('f_notes').value.trim() || null,
+    ...frUpdate
+  }).eq('id', editingId);
+  if(error) throw error;
+
+  $('formPanel').classList.add('hidden');
+  resetForm();
+  toast('Zmeny uložené.', 1500);
+  loadGallery();
+  if(currentUser) loadPending();
+}
+
+$('btnSave').addEventListener('click', async () => {
+  const reg = $('f_reg').value.trim();
+  const type = $('f_type').value.trim();
+  if(!reg && !type){ toast('Zadaj aspoň registráciu alebo typ lietadla.'); return; }
+
+  $('btnSave').disabled = true;
+  toast(editingId ? 'Ukladám zmeny...' : 'Odosielam...', 4000);
+  try{
+    if(editingId) await submitEdit(reg, type);
+    else await submitNew(reg, type);
+  }catch(e){
+    toast((editingId ? 'Uloženie zlyhalo: ' : 'Odoslanie zlyhalo: ') + (e.message || e));
+  }finally{
+    $('btnSave').disabled = false;
+  }
+});
+
+/* ---------- auth ---------- */
+$('authToggle').addEventListener('click', () => {
+  if(currentUser){ logout(); }
+  else{ $('loginPanel').classList.toggle('hidden'); }
+});
+$('btnLoginCancel').addEventListener('click', () => $('loginPanel').classList.add('hidden'));
+$('btnLoginSubmit').addEventListener('click', async () => {
+  const email = $('l_email').value.trim();
+  const password = $('l_password').value;
+  if(!email || !password){ toast('Zadaj email a heslo.'); return; }
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if(error){ toast('Prihlásenie zlyhalo: ' + error.message); return; }
+  $('loginPanel').classList.add('hidden');
+  $('l_password').value = '';
+  toast('Prihlásený.', 1500);
+});
+
+async function logout(){
+  await sb.auth.signOut();
+  toast('Odhlásený.', 1200);
+}
+
+function updateAuthUI(){
+  if(currentUser){
+    $('authArea').innerHTML = `Admin: ${escapeHtml(currentUser.email)} · <span class="link" id="authToggle">Odhlásiť</span>`;
+    $('btnPending').classList.remove('hidden');
+  }else{
+    $('authArea').innerHTML = `<span class="link" id="authToggle">Prihlásenie pre správcu</span>`;
+    $('btnPending').classList.add('hidden');
+    $('pendingPanel').classList.add('hidden');
+  }
+  $('authToggle').addEventListener('click', () => {
+    if(currentUser){ logout(); } else { $('loginPanel').classList.toggle('hidden'); }
+  });
+}
+
+sb.auth.onAuthStateChange((event, session) => {
+  currentUser = session ? session.user : null;
+  updateAuthUI();
+  if(currentUser) loadPending(); else { pendingEntries = []; renderPending(); }
+  render();
+});
+
+/* ---------- pending queue (admin) ---------- */
+$('btnPending').addEventListener('click', () => {
+  $('pendingPanel').classList.toggle('hidden');
+});
+
+async function loadPending(){
+  if(!currentUser) return;
+  const { data, error } = await sb.from('sightings').select('*, sighting_photos(*)').eq('status', 'pending').order('created_at', { ascending: false });
+  if(error){ toast('Chyba pri načítaní čakajúcich: ' + error.message); return; }
+  pendingEntries = (data || []).map(mapRow);
+  $('btnPending').textContent = `Čakajúce (${pendingEntries.length})`;
+  renderPending();
+}
+
+function renderPending(){
+  $('btnPending').textContent = `Čakajúce (${pendingEntries.length})`;
+  if(pendingEntries.length === 0){
+    $('pendingList').innerHTML = '<div class="photo-rows__empty">Žiadne čakajúce záznamy.</div>';
+    return;
+  }
+  $('pendingList').innerHTML = pendingEntries.map(en => `
+    <div class="pending-card">
+      <img src="${en.photos[0] ? en.photos[0].url : ''}" style="${en.photos[0] ? '' : 'display:none;'}">
+      <div class="pending-card__info">
+        <b>${escapeHtml(en.reg || '—')}</b> · ${escapeHtml(en.type || '')}<br>
+        ${escapeHtml(en.operator || '')} ${en.route ? '· ' + escapeHtml(en.route) : ''}<br>
+        ${escapeHtml(en.date || '')} ${escapeHtml(en.time || '')} · ${escapeHtml(en.location || '')}<br>
+        ${en.photos.length} fotiek${en.frShotUrl ? ' · má FR screenshot' : ''}
+        ${en.notes ? '<br>' + escapeHtml(en.notes) : ''}
+      </div>
+      <div class="pending-card__actions">
+        <button class="btn-approve" data-approve="${en.id}">Schváliť</button>
+        <button class="btn-edit" data-edit-pending="${en.id}">Upraviť</button>
+        <button class="btn-reject" data-reject="${en.id}">Zamietnuť</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+$('pendingList').addEventListener('click', async (e) => {
+  const appr = e.target.closest('[data-approve]');
+  const editBtn = e.target.closest('[data-edit-pending]');
+  const rej = e.target.closest('[data-reject]');
+  if(editBtn){
+    const entry = pendingEntries.find(e2 => e2.id === editBtn.getAttribute('data-edit-pending'));
+    if(entry) openEditForm(entry);
+    return;
+  }
+  if(appr){
+    const id = appr.getAttribute('data-approve');
+    const { error } = await sb.from('sightings').update({ status: 'approved' }).eq('id', id);
+    if(error){ toast('Chyba: ' + error.message); return; }
+    toast('Schválené.', 1200);
+    pendingEntries = pendingEntries.filter(e2 => e2.id !== id);
+    renderPending();
+    loadGallery();
+  }
+  if(rej){
+    const id = rej.getAttribute('data-reject');
+    const entry = pendingEntries.find(e2 => e2.id === id);
+    if(!confirm('Naozaj zamietnuť a zmazať tento záznam?')) return;
+    await deleteSighting(entry);
+    pendingEntries = pendingEntries.filter(e2 => e2.id !== id);
+    renderPending();
+  }
+});
+
+async function deleteSighting(entry){
+  if(!entry) return;
+  const paths = entry.photos.map(p => p.path);
+  if(entry.frShotPath) paths.push(entry.frShotPath);
+  if(paths.length){ await sb.storage.from(BUCKET).remove(paths); }
+  const { error } = await sb.from('sightings').delete().eq('id', entry.id);
+  if(error){ toast('Chyba pri mazaní: ' + error.message); return; }
+  toast('Zmazané.', 1200);
+}
+
+/* ---------- gallery ---------- */
+function mapRow(row){
+  const photos = (row.sighting_photos || []).map(p => ({
+    id: p.id,
+    path: p.storage_path,
+    filename: p.original_filename,
+    url: sb.storage.from(BUCKET).getPublicUrl(p.storage_path).data.publicUrl
+  }));
+  return {
+    id: row.id, date: row.date, time: row.time, location: row.location, category: row.category,
+    reg: row.reg, type: row.type, operator: row.operator, flightNo: row.flight_no, route: row.route,
+    notes: row.notes, frShotPath: row.fr_shot_path,
+    frShotUrl: row.fr_shot_path ? sb.storage.from(BUCKET).getPublicUrl(row.fr_shot_path).data.publicUrl : null,
+    photos, status: row.status
+  };
+}
+
+async function loadGallery(){
+  $('galleryList').innerHTML = '<div class="loading">Načítavam pozorovania...</div>';
+  $('empty').classList.add('hidden');
+  const { data, error } = await sb.from('sightings').select('*, sighting_photos(*)').eq('status', 'approved').order('created_at', { ascending: false });
+  if(error){ toast('Chyba pri načítaní galérie: ' + error.message); $('galleryList').innerHTML = ''; return; }
+  state.entries = (data || []).map(mapRow);
+  renderStats();
+  render();
+}
+
+function renderStats(){
+  const total = state.entries.length;
+  if(total === 0){ $('statsBar').textContent = ''; return; }
+  const types = new Set(state.entries.map(e => e.type).filter(Boolean)).size;
+  let oldest = null;
+  state.entries.forEach(e => { if(e.date && (!oldest || e.date < oldest)) oldest = e.date; });
+  let text = `${total} schválených pozorovaní · ${types} ${types === 1 ? 'typ' : (types >= 2 && types <= 4 ? 'typy' : 'typov')} lietadiel`;
+  if(oldest) text += ` · od ${oldest}`;
+  $('statsBar').textContent = text;
+}
+
+function tileHtml(en){
+  const first = en.photos[0];
+  const photoInner = first ? `<img class="tile__photo" src="${first.url}" alt="${escapeHtml(en.type || 'lietadlo')}">` : `<div class="tile__nophoto">bez fotky</div>`;
+  const countBadge = en.photos.length > 1 ? `<div class="tile__count">+${en.photos.length - 1}</div>` : '';
+  const adminDel = currentUser ? `<button class="tile__admin-del" data-admin-del="${en.id}" title="Zmazať">✕</button>` : '';
+  const adminEdit = currentUser ? `<button class="tile__admin-edit" data-admin-edit="${en.id}" title="Upraviť">✎</button>` : '';
+  return `
+  <div class="tile" data-id="${en.id}">
+    <div class="tile__photo-wrap" ${en.photos.length ? `data-photo="${en.id}"` : ''}>
+      <div class="tile__tab tile__tab--${en.category || 'other'}"></div>
+      ${photoInner}
+      ${countBadge}
+      ${adminDel}
+      ${adminEdit}
+    </div>
+    <div class="tile__footer">
+      <div class="tile__reg">${escapeHtml(en.reg || '—')}</div>
+      <div class="tile__type">${escapeHtml(en.type || '')}${en.operator ? ' · ' + escapeHtml(en.operator) : ''}</div>
+      <div class="tile__meta">${escapeHtml(en.date || '')} ${escapeHtml(en.time || '')}</div>
+      ${en.frShotUrl ? `<div class="tile__fr-link" data-fr="${en.id}">FlightRadar screenshot →</div>` : ''}
+    </div>
+  </div>`;
+}
+
+function render(){
+  const search = $('search').value.trim().toLowerCase();
+  const filterLoc = $('filterLoc').value;
+  const filterCat = $('filterCat').value;
+  const filterType = $('filterType').value;
+
+  const locs = [...new Set(state.entries.map(e => e.location).filter(Boolean))].sort();
+  const curLoc = $('filterLoc').value;
+  $('filterLoc').innerHTML = '<option value="">Všetky lokality</option>' + locs.map(l => `<option value="${escapeHtml(l)}">${escapeHtml(l)}</option>`).join('');
+  $('filterLoc').value = locs.includes(curLoc) ? curLoc : '';
+  $('locationOptions').innerHTML = locs.map(l => `<option value="${escapeHtml(l)}"></option>`).join('');
+
+  const types = [...new Set(state.entries.map(e => e.type).filter(Boolean))].sort();
+  const curType = $('filterType').value;
+  $('filterType').innerHTML = '<option value="">Všetky typy</option>' + types.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+  $('filterType').value = types.includes(curType) ? curType : '';
+
+  let list = state.entries.filter(en => {
+    if(filterLoc && en.location !== filterLoc) return false;
+    if(filterCat && en.category !== filterCat) return false;
+    if(filterType && en.type !== filterType) return false;
+    if(search){
+      const hay = [en.reg,en.type,en.operator,en.route,en.flightNo,en.location,en.notes].join(' ').toLowerCase();
+      if(!hay.includes(search)) return false;
+    }
+    return true;
+  });
+
+  $('count').textContent = `${list.length} / ${state.entries.length} SCHVÁLENÝCH ZÁZNAMOV`;
+
+  const byRecency = (a,b) => {
+    const da = (a.date||'') + (a.time||'');
+    const db = (b.date||'') + (b.time||'');
+    return db.localeCompare(da);
+  };
+
+  if($('sortMode').value === 'type'){
+    const groups = {};
+    list.forEach(en => {
+      const key = (en.type || '').trim() || 'Neurčené';
+      if(!groups[key]) groups[key] = [];
+      groups[key].push(en);
+    });
+    const names = Object.keys(groups).sort((a,b) => a.localeCompare(b));
+    names.forEach(n => groups[n].sort(byRecency));
+    $('galleryList').innerHTML = names.map(name => `
+      <div class="type-group">
+        <div class="type-group__header">${escapeHtml(name)} <span class="type-group__count">(${groups[name].length})</span></div>
+        <div class="tile-grid">${groups[name].map(tileHtml).join('')}</div>
+      </div>
+    `).join('');
+  }else{
+    list.sort(byRecency);
+    $('galleryList').innerHTML = `<div class="tile-grid">${list.map(tileHtml).join('')}</div>`;
+  }
+  $('empty').classList.toggle('hidden', state.entries.length !== 0);
+}
+
+$('galleryList').addEventListener('click', async (e) => {
+  const photoEl = e.target.closest('[data-photo]');
+  const frEl = e.target.closest('[data-fr]');
+  const delEl = e.target.closest('[data-admin-del]');
+  const editEl = e.target.closest('[data-admin-edit]');
+  if(delEl){
+    const id = delEl.getAttribute('data-admin-del');
+    const entry = state.entries.find(en => en.id === id);
+    if(!confirm('Naozaj zmazať tento schválený záznam?')) return;
+    await deleteSighting(entry);
+    loadGallery();
+    return;
+  }
+  if(editEl){
+    const entry = state.entries.find(en => en.id === editEl.getAttribute('data-admin-edit'));
+    if(entry) openEditForm(entry);
+    return;
+  }
+  if(photoEl){
+    const entry = state.entries.find(en => en.id === photoEl.getAttribute('data-photo'));
+    if(entry) openLightbox(entry, 'photo', 0);
+    return;
+  }
+  if(frEl){
+    const entry = state.entries.find(en => en.id === frEl.getAttribute('data-fr'));
+    if(entry) openLightbox(entry, 'fr', 0);
+    return;
+  }
+});
+
+['search','filterLoc','filterCat','filterType','sortMode'].forEach(id => $(id).addEventListener(id === 'search' ? 'input' : 'change', render));
+
+/* ---------- lightbox ---------- */
+function openLightbox(entry, mode, photoIndex){
+  photoIndex = photoIndex || 0;
+  let src;
+  const photos = entry.photos;
+  if(mode === 'fr'){
+    src = entry.frShotUrl;
+    if(!src) return;
+  }else{
+    if(!photos.length) return;
+    photoIndex = ((photoIndex % photos.length) + photos.length) % photos.length;
+    src = photos[photoIndex].url;
+  }
+  lightboxState = { entry, mode, photoIndex };
+
+  const CATEGORY_LABELS = { commercial:'Komerčné', cargo:'Nákladné', military:'Vojenské', ga:'Všeobecné letectvo', other:'Iné' };
+  const rows = [];
+  if(entry.reg) rows.push(['Registrácia', escapeHtml(entry.reg)]);
+  if(entry.type) rows.push(['Typ', escapeHtml(entry.type)]);
+  if(entry.operator) rows.push(['Dopravca', escapeHtml(entry.operator)]);
+  if(entry.flightNo) rows.push(['Číslo letu', escapeHtml(entry.flightNo)]);
+  if(entry.route) rows.push(['Trasa', escapeHtml(entry.route)]);
+  if(entry.date) rows.push(['Dátum', escapeHtml(entry.date) + (entry.time ? ' · ' + escapeHtml(entry.time) : '')]);
+  if(entry.location) rows.push(['Lokalita', escapeHtml(entry.location)]);
+  if(entry.category) rows.push(['Kategória', CATEGORY_LABELS[entry.category] || escapeHtml(entry.category)]);
+  $('lightboxTable').innerHTML = rows.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('');
+
+  let caption = '';
+  if(mode === 'photo' && photos.length > 1) caption += `<span class="lightbox__count">Foto ${photoIndex + 1}/${photos.length}</span>`;
+  if(entry.notes) caption += `<div>${escapeHtml(entry.notes)}</div>`;
+  const hasOther = mode === 'fr' ? photos.length > 0 : !!entry.frShotUrl;
+  if(hasOther){
+    const label = mode === 'fr' ? '← späť na fotku' : 'FlightRadar screenshot →';
+    caption += `<div style="margin-top:8px;"><span class="lightbox__fr-toggle" id="lightboxToggle">${label}</span></div>`;
+  }
+
+  $('lightboxImg').src = src;
+  $('lightboxCaption').innerHTML = caption;
+  $('lightbox').classList.remove('hidden');
+  const showNav = mode === 'photo' && photos.length > 1;
+  $('lightboxPrev').style.display = showNav ? 'flex' : 'none';
+  $('lightboxNext').style.display = showNav ? 'flex' : 'none';
+
+  const toggle = document.getElementById('lightboxToggle');
+  if(toggle) toggle.onclick = () => openLightbox(entry, mode === 'fr' ? 'photo' : 'fr', photoIndex);
+}
+function closeLightbox(){ $('lightbox').classList.add('hidden'); lightboxState = null; }
+$('lightboxClose').addEventListener('click', closeLightbox);
+document.querySelector('.lightbox__backdrop').addEventListener('click', closeLightbox);
+document.addEventListener('keydown', (e) => {
+  if(e.key === 'Escape') closeLightbox();
+  if(lightboxState && lightboxState.mode === 'photo'){
+    if(e.key === 'ArrowLeft') openLightbox(lightboxState.entry, 'photo', lightboxState.photoIndex - 1);
+    if(e.key === 'ArrowRight') openLightbox(lightboxState.entry, 'photo', lightboxState.photoIndex + 1);
+  }
+});
+$('lightboxPrev').addEventListener('click', () => { if(lightboxState) openLightbox(lightboxState.entry, 'photo', lightboxState.photoIndex - 1); });
+$('lightboxNext').addEventListener('click', () => { if(lightboxState) openLightbox(lightboxState.entry, 'photo', lightboxState.photoIndex + 1); });
+
+/* ---------- init ---------- */
+renderPhotoRows();
+loadGallery();
+sb.auth.getSession().then(({ data }) => {
+  currentUser = data.session ? data.session.user : null;
+  updateAuthUI();
+  if(currentUser) loadPending();
+});
+</script>
+</body>
+</html>
